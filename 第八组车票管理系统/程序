@@ -1,0 +1,320 @@
+#include <stdio.h>  
+#include <WinSock.h>   
+#include "mysql.h"    
+#include <Windows.h>
+#include <iostream>
+#include<stdlib.h>
+using namespace std;
+#include "string.h"
+//包含附加依赖项，也可以在工程--属性里面设置  
+//#pragma comment(lib,"wsock32.lib") 
+//#pragma comment(lib,"libmysql.lib")
+//********全局变量的定义*********
+MYSQL mysql; //mysql连接
+MYSQL_FIELD *fd;  //字段列数组
+char field[32][32];  //存字段名二维数组
+MYSQL_RES *res; //这个结构代表返回行的一个查询结果集
+MYSQL_ROW column; //数据行的列
+char query[150]; //查询语句
+//**********函数声明**************
+bool AllisNum(char[]);		
+bool UsePromptPage();
+bool ConnectDatabase();    	  
+void FreeConnect();
+bool ShowAll();  	  
+bool QueryDatabase(char[],char[]);  
+bool InsertData(char e[][150]);	
+bool ModifyData(char e[][150]);	
+bool DeleteData(char e[][150]);
+//**********主函数*****************
+void main(int argc, char **argv)
+{
+	int m,i;
+	UsePromptPage();
+	ConnectDatabase();
+	while (1)
+	{
+		char a[150], b[150], c[7][150], d[4][150];	//操作语句词
+		printf("   \n请输入数字1-6进行对数据库的操作：\n");
+		cin >> m;
+		if (m == 6)
+			break;
+		else
+			switch (m)
+			{
+			case 1://显示信息
+				ShowAll();
+				break;
+			case 2://查询信息
+				cout << "请输入你要查询班次的关键字（发车时间、起点站、终点站、行车时间、额定载量）和信息内容"<< endl;
+				cin >> a;
+				cin >> b;
+				QueryDatabase(a, b);
+				break;
+			case 3://购票;
+				cout << "请输入你要购买车的班次，"<<endl;
+				for (i = 0; i < 2; i++)
+				{
+					cin >> d[i];
+				};
+				ModifyData(d);
+				break;
+			case 4://退票
+				cout << "请输入你要退掉车的班次， "<< endl;
+				for (i = 0; i < 2; i++)
+				{
+					cin >> d[i];
+				}
+				DeleteData(d);
+				break;
+			case 5://录入
+				cout << "请输入你要增添班次的信息，顺序为班次、发车时间、起点站、终点站、行车时间、额定载量、已订票人数" << endl;
+				for (i = 0; i < 7; i++)
+				{
+					cin >> c[i];
+				}
+				InsertData(c);
+			default:
+				cout << "请输入1-6数字" << endl;
+			}		
+	}
+	printf(" \n *****************   \n  感谢你的使用！！！\n          --代码制作者张富强小组");
+	FreeConnect();
+	//system("paues");
+}
+
+//***********进入系统时的提示页面**
+bool UsePromptPage()			
+{
+	printf("		***************************************\n");
+	printf("		***************************************\n");
+	printf("		**                                   **\n");
+	printf("		**       欢迎使用车票管理系统        **\n");
+	printf("		**                                   **\n");
+	printf("		***************************************\n");
+	printf("		***************************************\n");
+	printf("\n\n");
+	printf("          请输入1,2,3,4,5,6数字，即可实现对应功能  \n\n");
+	printf("             ***************************\n");
+	printf("             ***************************\n");
+	printf("             **  1：显示班次信息      **\n");
+	printf("             **  2: 查询班次信息      **\n");
+	printf("             **  3：售票              **\n");
+	printf("             **  4：退票              **\n");
+	printf("             **  5：录入信息          **\n");
+	printf("             **  6：退出系统          **\n");
+	printf("             ***************************\n");
+	printf("             ***************************\n\n");
+	return true;
+}
+//***********连接数据库************
+bool ConnectDatabase()
+{
+	//初始化mysql  
+	mysql_init(&mysql);  //连接mysql，数据库  
+	const char host[] = "localhost";
+	const char user[] = "root";
+	const char psw[] = "709977";
+	const char table[] = "cp";
+	const int port = 3306;
+	//返回false则连接失败，返回true则连接成功  
+	if (!(mysql_real_connect(&mysql, host, user, psw, table, port, NULL, 0)))
+		//中间分别是主机，用户名，密码，数据库名，端口号（可以写默认0或者3306等），可以
+	{
+		printf("连接失败:%s\n", mysql_error(&mysql));
+		return false;
+	}
+	else
+	{
+		printf("连接数据库cp成功...\n");
+		return true;
+	}
+}
+//***********释放资源**************
+void FreeConnect()
+{
+	mysql_free_result(res);  //释放一个结果集合使用的内存。
+	mysql_close(&mysql);	 //关闭一个服务器连接。
+}
+//***********显示表的所有信息******
+bool ShowAll()
+{
+	mysql_query(&mysql, "set names gbk");
+	if (mysql_query(&mysql, "select * from banci"))        //执行SQL语句返回0 查询成功，返回1查询失败  
+	{
+		printf("查询失败 (%s)\n", mysql_error(&mysql));
+		return false;
+	}
+	else
+	{
+		printf("查询成功\n");
+	}
+	res = mysql_store_result(&mysql);
+	printf("一共有: %d班车\n", mysql_affected_rows(&mysql));		//打印数据行数 
+	for (int i = 0; fd = mysql_fetch_field(res); i++)	 //获取字段名  
+		strcpy(field[i], fd->name);
+	int j = mysql_num_fields(res);	 // 获取列数  
+	for ( i = 0; i < j; i++)		//打印字段  
+		printf("%10s\t", field[i]);
+	printf("\n");
+	while (column = mysql_fetch_row(res))
+	{
+		for (int i = 0; i < j; i++)
+			printf("%10s\t", column[i]);
+		printf("\n");
+	}
+	return true;
+}
+//***********查询功能**************
+bool QueryDatabase(char a[],char b[])
+{
+	char c[150] = "\'%";
+	strcpy(query, "select * from banci where ");
+	strcat(query,a);
+	strcat(query, " like ");
+	strcat(c, b);
+	strcat(c, "%\'");
+	strcat(query, c);
+	mysql_query(&mysql, "set names gbk"); 
+	if (mysql_query(&mysql,query))        //执行SQL语句，返回0 查询成功，返回1查询失败    
+	{
+		printf("查询失败 (%s)\n", mysql_error(&mysql));
+		return false;
+	}
+	else
+	{
+		printf("\n查询成功!!!\n");
+	}
+	res = mysql_store_result(&mysql);
+	if (mysql_affected_rows(&mysql) == 0)
+	{
+		cout << "抱歉，已发车" << endl;
+		return true;
+	}
+	printf("查询到一共有: %d班车\n", mysql_affected_rows(&mysql));		//打印数据行数
+	for (int i = 0; fd = mysql_fetch_field(res); i++)  //获取字段名  
+		strcpy(field[i], fd->name);
+	int j = mysql_num_fields(res);  // 获取列数
+	for ( i = 0; i < j; i++)  //打印字段 
+		printf("%10s\t", field[i]);
+	printf("\n");
+	while (column = mysql_fetch_row(res))
+	{
+		for (int i = 0; i < j; i++)
+			printf("%10s\t", column[i]);
+		printf("\n");
+	}
+	return true;
+}
+
+//***********退票  ************
+bool DeleteData(char e[][150])
+{
+	char d[150]="\'";
+	mysql_query(&mysql, "set names gbk");
+	strcat(d, e[1]);
+	strcat(d, "\'");
+	strcpy(e[1], d);
+	strcpy(query, "update banci set ");
+	strcat(query, "已订票人数");
+	strcat(query, "=");
+	strcat(query, "已订票人数-1");
+	strcat(query," where ");
+	strcat(query, e[0]);
+	strcat(query, "=");
+	strcat(query, e[1]);
+	cout << query << endl;
+	if (mysql_query(&mysql, query))        //执行SQL语句
+		{
+			printf("退票失败 (%s)\n", mysql_error(&mysql));
+			return false;
+		}
+		else
+		{
+			printf("退票成功\n");
+			return true;
+		}
+}
+
+//***********购票 *************
+bool ModifyData(char e[][150])
+{
+	char d[150]="\'";
+	mysql_query(&mysql, "set names gbk");
+	strcat(d, e[1]);
+	strcat(d, "\'");
+	strcpy(e[1], d);
+	strcpy(query, "update banci set ");
+	strcat(query, "已订票人数");
+	strcat(query, "=");
+	strcat(query, "已订票人数+1");
+	strcat(query," where ");
+	strcat(query, e[0]);
+	strcat(query, "=");
+	strcat(query, e[1]);
+	cout << query << endl;
+	if (mysql_query(&mysql, query))        //执行SQL语句
+		{
+			printf("购票失败 (%s)\n", mysql_error(&mysql));
+			return false;
+		}
+		else
+		{
+			printf("购票成功\n");
+			return true;
+		}
+}
+//***********录入信息 *************
+bool InsertData(char e[7][150])
+{
+	mysql_query(&mysql, "set names gbk");
+	char d[150];
+	for (int i = 1; i < 7; i++)
+	{
+		if (!AllisNum(e[i]) && strcmp(e[i],"null")!=0)		//给字符类型的数据添加‘’
+		{
+			strcpy(d, ",\'");
+			strcat(d,e[i]);
+			strcat(d, "\'");
+			strcpy(e[i],d);
+		}
+		else
+		{
+			strcpy(d, ",");
+			strcat(d, e[i]);
+			strcpy(e[i], d);
+		}
+	}
+	strcpy(query, "insert banci values(");
+	strcat(query, e[0]);
+	for (i = 1; i < 7; i++)
+	{
+		strcat(query, e[i]);
+	}
+	strcat(query, ")");
+	cout << query << endl;
+
+	if (mysql_query(&mysql, query))        //执行SQL语句  
+	{
+		printf("增添失败 (%s)\n", mysql_error(&mysql));
+		return false;
+	}
+	else
+	{
+		printf("增添成功\n");
+		return true;
+	}
+}
+//**********判断字符串是否全为数字*
+bool AllisNum(char str[])
+{
+for (int i = 0; i <strlen(str); i++)
+{
+	int tmp = (int)str[i];
+	if (tmp >= 48 && tmp <= 57)
+		continue;
+	else
+		return false;
+}
+return true;
+}
