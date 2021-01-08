@@ -1,0 +1,49 @@
+#include<iostream>
+#include<fstream>
+using namespace std;
+int main()
+{	
+	int i,j,e,k=0,t,b;
+	int n,m,h[100]={0},z[100]={0};
+	cin>>n>>m;
+	char a[100][100];
+	for(i=0;i<n;i++)
+	{
+		for(j=0;j<m;j++)
+		{
+			cin>>a[i][j];
+		}
+	}
+	cin>>t; //输入循环周期 
+	for(b=0;b<t;b++)
+	{
+		for(i=0;i<n;i++)
+		{
+			for(j=0;j<m;j++)
+			{
+				if(a[i][j]=='X')
+				{
+					h[k]=i;
+					z[k]=j;
+					k++;
+				}
+			}
+		}	
+		for(e=0;e<k;e++)
+		{
+			if(a[h[e]+1][z[e]]!='P')a[h[e]+1][z[e]]='X';
+			if(a[h[e]-1][z[e]]!='P')a[h[e]-1][z[e]]='X';
+			if(a[h[e]][z[e]+1]!='P')a[h[e]][z[e]+1]='X';
+			if(a[h[e]][z[e]-1]!='P')a[h[e]][z[e]-1]='X';
+		}
+	}
+	cout<<endl;
+	for(i=0;i<n;i++)
+	{
+		for(j=0;j<m;j++)
+		{
+			cout<<a[i][j];
+		}
+		cout<<endl;
+	}
+}
